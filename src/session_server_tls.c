@@ -30,6 +30,8 @@
 #include "session_server.h"
 #include "session_server_ch.h"
 
+#include "session_ctn_tls_60802.h"
+
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #define X509_STORE_CTX_get_by_subject X509_STORE_get_by_subject
 #endif
@@ -218,7 +220,13 @@ nc_tls_ctn_get_username_from_cert(X509 *client_cert, NC_TLS_CTN_MAPTYPE map_type
             return 1;
         }
         free(subject);
-    } else {
+    }
+    else if (map_type == NC_TLS_CTN_ARBITRARY_EXT) //Retrieve the arbritary extension.
+    {
+        return  nc_tls_ctn_get_username_roles_from_cert_60802(client_cert, username);
+    }
+    else
+    {
         /* retrieve subjectAltName's rfc822Name (email), dNSName and iPAddress values */
         san_names = X509_get_ext_d2i(client_cert, NID_subject_alt_name, NULL, NULL);
         if (!san_names) {

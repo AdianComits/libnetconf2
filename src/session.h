@@ -47,7 +47,8 @@ typedef enum {
     NC_TLS_CTN_SAN_DNS_NAME,    /**< DNS name as username */
     NC_TLS_CTN_SAN_IP_ADDRESS,  /**< IP address as username */
     NC_TLS_CTN_SAN_ANY,         /**< any certificate Subject Alternative Name as username */
-    NC_TLS_CTN_COMMON_NAME      /**< common name as username */
+    NC_TLS_CTN_COMMON_NAME,     /**< common name as username */
+    NC_TLS_CTN_ARBITRARY_EXT,    /**< 60802 defined extension  */
 } NC_TLS_CTN_MAPTYPE;
 
 #endif /* NC_ENABLED_TLS */

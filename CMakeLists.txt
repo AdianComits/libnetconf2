@@ -122,7 +122,8 @@ endif()
 if(ENABLE_TLS)
     list(APPEND libsrc
         src/session_client_tls.c
-        src/session_server_tls.c)
+        src/session_server_tls.c
+        src/session_ctn_tls_60802.c)
     set(TLS_MACRO "#ifndef NC_ENABLED_TLS\n#define NC_ENABLED_TLS\n#endif")
 endif()
 
