@@ -370,7 +370,7 @@ nc_session_rpc_unlock(struct nc_session *session, int timeout, const char *func)
         ERR(session, "%s: failed to RPC lock a session (%s).", func, strerror(ret));
         return -1;
     } else if (ret) {
-        WRN(session, "%s: session RPC lock timeout, should not happen.");
+        WRN(session, "%s: session RPC lock timeout, should not happen.", func);
     }
 
     session->opts.server.rpc_inuse = 0;
@@ -713,7 +713,7 @@ static void
 nc_session_free_transport(struct nc_session *session, int *multisession)
 {
     int connected; /* flag to indicate whether the transport socket is still connected */
-    int sock = -1, r;
+    int sock = -1;
     struct nc_session *siter;
 
     *multisession = 0;
@@ -738,7 +738,9 @@ nc_session_free_transport(struct nc_session *session, int *multisession)
         break;
 
 #ifdef NC_ENABLED_SSH
-    case NC_TI_LIBSSH:
+    case NC_TI_LIBSSH: {
+        int r;
+
         if (connected) {
             ssh_channel_send_eof(session->ti.libssh.channel);
             ssh_channel_free(session->ti.libssh.channel);
@@ -793,6 +795,7 @@ nc_session_free_transport(struct nc_session *session, int *multisession)
                 /* there are still multiple sessions, keep the ring list */
                 siter->ti.libssh.next = session->ti.libssh.next;
             }
+
             /* change nc_sshcb_msg() argument, we need a RUNNING session and this one will be freed */
             if (session->flags & NC_SESSION_SSH_MSG_CB) {
                 siter = session->ti.libssh.next;
@@ -817,6 +820,7 @@ nc_session_free_transport(struct nc_session *session, int *multisession)
             nc_session_io_unlock(session, __func__);
         }
         break;
+    }
 #endif
 
 #ifdef NC_ENABLED_TLS
@@ -930,6 +934,26 @@ nc_session_free(struct nc_session *session, void (*data_free)(void *))
                 free(session->opts.client.cpblts[i]);
             }
             free(session->opts.client.cpblts);
+        }
+
+        /* LY ext data */
+#ifdef NC_ENABLED_SSH
+        struct nc_session *siter;
+
+        if ((session->flags & NC_SESSION_SHAREDCTX) && session->ti.libssh.next) {
+            for (siter = session->ti.libssh.next; siter != session; siter = siter->ti.libssh.next) {
+                if (siter->status != NC_STATUS_STARTING) {
+                    /* move LY ext data to this session */
+                    assert(!siter->opts.client.ext_data);
+                    siter->opts.client.ext_data = session->opts.client.ext_data;
+                    session->opts.client.ext_data = NULL;
+                    break;
+                }
+            }
+        } else
+#endif
+        {
+            lyd_free_siblings(session->opts.client.ext_data);
         }
     }
 
