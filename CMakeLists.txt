@@ -59,7 +59,7 @@ endif()
 # micro version is changed with a set of small changes or bugfixes anywhere in the project.
 set(LIBNETCONF2_MAJOR_VERSION 2)
 set(LIBNETCONF2_MINOR_VERSION 1)
-set(LIBNETCONF2_MICRO_VERSION 25)
+set(LIBNETCONF2_MICRO_VERSION 28)
 set(LIBNETCONF2_VERSION ${LIBNETCONF2_MAJOR_VERSION}.${LIBNETCONF2_MINOR_VERSION}.${LIBNETCONF2_MICRO_VERSION})
 
 # Version of the library
@@ -67,13 +67,13 @@ set(LIBNETCONF2_VERSION ${LIBNETCONF2_MAJOR_VERSION}.${LIBNETCONF2_MINOR_VERSION
 # with backward compatible change and micro version is connected with any internal change of the library.
 set(LIBNETCONF2_MAJOR_SOVERSION 3)
 set(LIBNETCONF2_MINOR_SOVERSION 5)
-set(LIBNETCONF2_MICRO_SOVERSION 1)
+set(LIBNETCONF2_MICRO_SOVERSION 4)
 set(LIBNETCONF2_SOVERSION_FULL ${LIBNETCONF2_MAJOR_SOVERSION}.${LIBNETCONF2_MINOR_SOVERSION}.${LIBNETCONF2_MICRO_SOVERSION})
 set(LIBNETCONF2_SOVERSION ${LIBNETCONF2_MAJOR_SOVERSION})
 
 # Version of libyang library that this project depends on
-set(LIBYANG_DEP_VERSION 2.1.3)
-set(LIBYANG_DEP_SOVERSION 2.25.3)
+set(LIBYANG_DEP_VERSION 2.1.19)
+set(LIBYANG_DEP_SOVERSION 2.28.0)
 set(LIBYANG_DEP_SOVERSION_MAJOR 2)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -fvisibility=hidden -std=gnu99")
@@ -97,7 +97,8 @@ set(READ_INACTIVE_TIMEOUT 20 CACHE STRING "Maximum number of seconds waiting for
 set(READ_ACTIVE_TIMEOUT 300 CACHE STRING "Maximum number of seconds for receiving a full message")
 set(MAX_PSPOLL_THREAD_COUNT 6 CACHE STRING "Maximum number of threads that could simultaneously access a ps_poll structure")
 set(TIMEOUT_STEP 100 CACHE STRING "Number of microseconds tasks are repeated until timeout elapses")
-set(YANG_MODULE_DIR "${CMAKE_INSTALL_PREFIX}/share/yang/modules" CACHE STRING "Directory with common YANG modules")
+set(YANG_MODULE_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/yang/modules/libnetconf2" CACHE STRING "Directory where to copy the YANG modules to")
+set(CLIENT_SEARCH_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/yang/modules" CACHE STRING "Default NC client YANG module search directory")
 set(CALL_HOME_BACKOFF_WAIT 2 CACHE STRING "Number of seconds to wait between Call Home connection attempts")
 
 #
@@ -313,6 +314,9 @@ configure_file("${PROJECT_SOURCE_DIR}/src/config.h.in" "${PROJECT_BINARY_DIR}/sr
 configure_file(nc_client.h.in nc_client.h)
 configure_file(nc_server.h.in nc_server.h)
 configure_file(nc_version.h.in nc_version.h)
+
+# install YANG modules
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/modules/" DESTINATION ${YANG_MODULE_DIR} FILES_MATCHING PATTERN "*.yang")
 
 # install library
 install(TARGETS netconf2 DESTINATION ${CMAKE_INSTALL_LIBDIR})
