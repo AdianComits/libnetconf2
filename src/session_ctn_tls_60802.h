@@ -12,5 +12,7 @@
 #include <openssl/x509v3.h>
 
 int nc_tls_ctn_get_username_roles_from_cert_60802(X509 *client_cert, char **username);
+int is_recovery_session (X509 *client_cert);
+int get_serial_number(X509 *client_cert, char **subject_IDevID);
 
 #endif // SESSION_CTN_TLS_60802_H
