@@ -542,7 +542,13 @@ nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
         cert_stack = X509_STORE_CTX_get1_certs(x509_ctx, subject);
         if (cert_stack) {
             for (i = 0; i < sk_X509_num(cert_stack); ++i) {
-                if (cert_pubkey_match(session->opts.server.client_cert, sk_X509_value(cert_stack, i))) {
+                 if (X509_STORE_CTX_get_error(x509_ctx) == (X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION))
+                {
+                    X509_STORE_CTX_set_error(x509_ctx, X509_V_OK);
+                    sk_X509_pop_free(cert_stack, X509_free);
+                    return 1;
+                }
+               else if (cert_pubkey_match(session->opts.server.client_cert, sk_X509_value(cert_stack, i))) {
                     /* we are just overriding the failed standard certificate verification (preverify_ok == 0),
                      * this callback will be called again with the same current certificate and preverify_ok == 1 */
                     VRB(NULL, "Cert verify: fail (%s), but the client certificate is trusted, continuing.",
@@ -656,6 +662,13 @@ nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
             X509_OBJECT_free(obj);
         }
     }
+       /*recovery session */
+        if (is_recovery_session(cert) == 1)
+        {
+            WRN(NULL, "This is recovery session\n");
+            session->username =strdup("root");
+        }
+  
 
     /* cert-to-name already successful */
     if (session->username) {
