@@ -29,6 +29,7 @@
 #include "libnetconf.h"
 #include "session_client.h"
 #include "session_client_ch.h"
+#include "session_ctn_tls_60802.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #define X509_STORE_CTX_get_by_subject X509_STORE_get_by_subject
@@ -566,6 +567,19 @@ nc_client_tls_update_opts(struct nc_client_tls_opts *opts, const char *peername)
                 rc = -1;
                 goto cleanup;
             }
+        }else{
+            /* server identity (hostname) verification */
+            vpm = X509_VERIFY_PARAM_new();
+             if (!X509_VERIFY_PARAM_set1_host(vpm, NULL, 0)) {
+                ERR(NULL, "Failed to set expected server hostname (%s).", ERR_reason_error_string(ERR_get_error()));
+                rc = -1;
+                goto cleanup;
+            }
+            if (!SSL_CTX_set1_param(opts->tls_ctx, vpm)) {
+                ERR(NULL, "Failed to set verify params (%s).", ERR_reason_error_string(ERR_get_error()));
+                rc = -1;
+                goto cleanup;
+            }
         }
 #endif
     }
@@ -631,6 +645,10 @@ nc_client_tls_connect_check(int connect_ret, SSL *tls, const char *peername)
             VRB(NULL, "Server certificate verified (domain \"%s\").", peername);
         }
         break;
+    case X509_V_ERR_HOSTNAME_MISMATCH:
+        VRB(NULL, "Hostname mismatch. Checking if host: %s has a valid serial number.", peername);
+        return X509_V_ERR_HOSTNAME_MISMATCH;
+        break;
     default:
         ERR(NULL, "Server certificate error (%s).", X509_verify_cert_error_string(verify));
     }
@@ -656,6 +674,7 @@ nc_client_tls_connect_check(int connect_ret, SSL *tls, const char *peername)
 API struct nc_session *
 nc_connect_tls(const char *host, unsigned short port, struct ly_ctx *ctx)
 {
+    char *serial_num = NULL;
     struct nc_session *session = NULL;
     int sock, ret;
     struct timespec ts_timeout;
@@ -688,7 +707,7 @@ nc_connect_tls(const char *host, unsigned short port, struct ly_ctx *ctx)
     }
     session->status = NC_STATUS_STARTING;
 
-    /* fill the session */
+    /* fill the session */  
     session->ti_type = NC_TI_OPENSSL;
     if (!(session->ti.tls = SSL_new(tls_opts.tls_ctx))) {
         ERR(NULL, "Failed to create a new TLS session structure (%s).", ERR_reason_error_string(ERR_get_error()));
@@ -715,6 +734,58 @@ nc_connect_tls(const char *host, unsigned short port, struct ly_ctx *ctx)
             ERR(NULL, "SSL connect timeout.");
             goto fail;
         }
+    }
+    
+    if (nc_client_tls_connect_check(ret, session->ti.tls, host) == X509_V_ERR_HOSTNAME_MISMATCH) {
+        /* create/update TLS structures */
+        if (nc_client_tls_update_opts(&tls_opts, NULL)) {
+            return NULL;
+        }
+        /* prepare session structure */
+        session = nc_new_session(NC_CLIENT, 0);
+        if (!session) {
+            ERRMEM;
+            return NULL;
+        }
+        session->status = NC_STATUS_STARTING;
+
+        /* fill the session */  
+        session->ti_type = NC_TI_OPENSSL;
+        if (!(session->ti.tls = SSL_new(tls_opts.tls_ctx))) {
+            ERR(NULL, "Failed to create a new TLS session structure (%s).", ERR_reason_error_string(ERR_get_error()));
+            goto fail;
+        }
+
+        /* create and assign socket */
+        sock = nc_sock_connect(host, port, -1, &client_opts.ka, NULL, &ip_host);
+        if (sock == -1) {
+            ERR(NULL, "Unable to connect to %s:%u (%s).", host, port, strerror(errno));
+            goto fail;
+        }
+        SSL_set_fd(session->ti.tls, sock);
+
+        /* set the SSL_MODE_AUTO_RETRY flag to allow OpenSSL perform re-handshake automatically */
+        SSL_set_mode(session->ti.tls, SSL_MODE_AUTO_RETRY);
+
+        /* connect and perform the handshake */
+        nc_gettimespec_mono_add(&ts_timeout, NC_TRANSPORT_TIMEOUT);
+        tlsauth_ch = 0;
+        while (((ret = SSL_connect(session->ti.tls)) != 1) && (SSL_get_error(session->ti.tls, ret) == SSL_ERROR_WANT_READ)) {
+            usleep(NC_TIMEOUT_STEP);
+            if (nc_difftimespec_mono_cur(&ts_timeout) < 1) {
+                ERR(NULL, "SSL connect timeout.");
+                goto fail;
+            }
+        }
+
+        get_serial_number(session->ti.tls, &serial_num);
+        if(serial_num == NULL)
+        {
+            goto fail;
+        }
+       VRB(NULL, "SUBJECT: %s", serial_num);
+
+
     }
 
     /* check for errors */

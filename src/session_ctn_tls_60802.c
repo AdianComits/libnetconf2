@@ -101,15 +101,15 @@ int nc_tls_ctn_get_username_roles_from_cert_60802(X509 *client_cert, char **user
                 switch (role)
                 {
                 case TruststoreAdminRole:
-                    *username = strdup("TruststoreAdminRole");
+                    *username = strdup("TruststoreAdminRole\0");
                     break;
 
                 case KeystoreAdminRole:
-                    *username = strdup("KeystoreAdminRole");
+                    *username = strdup("KeystoreAdminRole\0");
                     break;
 
                 case UserMappingAdminRole:
-                    *username = strdup("UserMappingAdminRole");
+                    *username = strdup("UserMappingAdminRole\0");
                     break;
 
                 default:
@@ -154,27 +154,21 @@ int is_recovery_session(X509 *client_cert)
     return 0;
 }
 
-int get_serial_number(X509 *client_cert, char **subject_IDevID)
+int get_serial_number(SSL *tls, char **subject_IDevID)
 {
     char *subject, *serial_num;
-    subject = X509_NAME_oneline(X509_get_subject_name(client_cert), NULL, 0);
+
+    X509 *server_cert=SSL_get_peer_certificate(tls);
+
+    subject = X509_NAME_oneline(X509_get_subject_name(server_cert), NULL, 0);
+
     serial_num = strstr(subject, "serialNumber=");
-    if (!serial_num)
-    {
+    if (!serial_num){
         WRN(NULL, "Certificate does not include the serial number field.");
         free(subject);
         return 1;
     }
-    serial_num += 14;
-    if (strchr(serial_num, '/'))
-    {
-        *strchr(serial_num, '/') = '\0';
-    }
-    *subject_IDevID = strdup(serial_num);
-    
-    WRN(NULL, "serail number is  %s", subject_IDevID);
+    *subject_IDevID = strdup(subject);
     free(subject);
-    
-return 0;
-
+    return 0;
 }
