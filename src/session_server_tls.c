@@ -679,10 +679,10 @@ nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
     rc = nc_tls_cert_to_name(opts->ctn, cert, &map_type, &username);
 
     if (rc) {
-        if (rc == -1) {
-            /* fatal error */
-            depth = 0;
-        }
+        // if (rc == -1) {
+        //     /* fatal error */
+        //     depth = 0;
+        // }
         /* rc == 1 is a normal CTN fail (no match found) */
         goto fail;
     }
