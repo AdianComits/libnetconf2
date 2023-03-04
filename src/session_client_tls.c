@@ -568,7 +568,7 @@ nc_client_tls_update_opts(struct nc_client_tls_opts *opts, const char *peername)
                 goto cleanup;
             }
         }else{
-            /* server identity (hostname) verification */
+            /* server identity (hostname) verification for IDevID serail number */
             vpm = X509_VERIFY_PARAM_new();
              if (!X509_VERIFY_PARAM_set1_host(vpm, NULL, 0)) {
                 ERR(NULL, "Failed to set expected server hostname (%s).", ERR_reason_error_string(ERR_get_error()));
@@ -735,7 +735,7 @@ nc_connect_tls(const char *host, unsigned short port, struct ly_ctx *ctx)
             goto fail;
         }
     }
-    
+    /* handling IdevID serail number*/
     if (nc_client_tls_connect_check(ret, session->ti.tls, host) == X509_V_ERR_HOSTNAME_MISMATCH) {
         /* create/update TLS structures */
         if (nc_client_tls_update_opts(&tls_opts, NULL)) {

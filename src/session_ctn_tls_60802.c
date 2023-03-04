@@ -90,7 +90,7 @@ int nc_tls_ctn_get_username_roles_from_cert_60802(X509 *client_cert, char **user
     {
         ASN1_OBJECT *obj;
         X509_EXTENSION *ex;
-
+        
         ex = sk_X509_EXTENSION_value(exts, i);
         obj = X509_EXTENSION_get_object(ex);
         if (X509_EXTENSION_get_critical(ex))

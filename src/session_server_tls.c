@@ -496,7 +496,7 @@ cleanup:
 }
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L // >= 1.1.0
-
+int TOFU =1;
 static int
 nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
 {
@@ -538,21 +538,18 @@ nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
 
     /* standard certificate verification failed, so a trusted client cert must match to continue */
     if (!preverify_ok) {
+        ERR(NULL,"enter pverify loop");
         subject = X509_get_subject_name(session->opts.server.client_cert);
         cert_stack = X509_STORE_CTX_get1_certs(x509_ctx, subject);
         if (cert_stack) {
-            for (i = 0; i < sk_X509_num(cert_stack); ++i) {
-                 if (X509_STORE_CTX_get_error(x509_ctx) == (X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION))
+            for (i = 0; i < sk_X509_num(cert_stack); ++i) 
+            {
+                if (cert_pubkey_match(session->opts.server.client_cert, sk_X509_value(cert_stack, i)))
                 {
-                    X509_STORE_CTX_set_error(x509_ctx, X509_V_OK);
-                    sk_X509_pop_free(cert_stack, X509_free);
-                    return 1;
-                }
-               else if (cert_pubkey_match(session->opts.server.client_cert, sk_X509_value(cert_stack, i))) {
                     /* we are just overriding the failed standard certificate verification (preverify_ok == 0),
                      * this callback will be called again with the same current certificate and preverify_ok == 1 */
                     VRB(NULL, "Cert verify: fail (%s), but the client certificate is trusted, continuing.",
-                            X509_verify_cert_error_string(X509_STORE_CTX_get_error(x509_ctx)));
+                        X509_verify_cert_error_string(X509_STORE_CTX_get_error(x509_ctx)));
                     X509_STORE_CTX_set_error(x509_ctx, X509_V_OK);
                     sk_X509_pop_free(cert_stack, X509_free);
                     return 1;
@@ -561,6 +558,22 @@ nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
             sk_X509_pop_free(cert_stack, X509_free);
         }
 
+        if (X509_STORE_CTX_get_error(x509_ctx) == (X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION))
+        {
+            X509_STORE_CTX_set_error(x509_ctx, X509_V_OK);
+            sk_X509_pop_free(cert_stack, X509_free);
+            return 1;
+        }
+        if(X509_STORE_CTX_get_error(x509_ctx) == (X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE) || X509_STORE_CTX_get_error(x509_ctx) == (X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY))
+        {
+            ERR(NULL, "%s", X509_verify_cert_error_string(X509_STORE_CTX_get_error(x509_ctx)));
+            if (TOFU)
+            {
+                ERR(NULL, "trusting on first use");
+                return 1;
+            }
+        }
+        
         ERR(NULL, "Cert verify: fail (%s).", X509_verify_cert_error_string(X509_STORE_CTX_get_error(x509_ctx)));
         return 0;
     }
@@ -662,12 +675,12 @@ nc_tlsclb_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
             X509_OBJECT_free(obj);
         }
     }
-       /*recovery session */
-        if (is_recovery_session(cert) == 1)
-        {
-            WRN(NULL, "This is recovery session\n");
-            session->username =strdup("root");
-        }
+    /*recovery session */
+    if (is_recovery_session(cert) == 1)
+    {
+        WRN(NULL, "This is recovery session\n");
+        session->username =strdup("root");
+    }
   
 
     /* cert-to-name already successful */
