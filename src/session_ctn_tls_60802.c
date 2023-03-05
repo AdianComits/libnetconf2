@@ -52,19 +52,19 @@ static enum ROLES_60802 get_role_60802(const ASN1_STRING *v)
     }
     WRN(NULL, "Extension %s", buf);
 
-    if (strcmp("TruststoreAdminRole", buf) == 0)
+    if (strstr(buf,"TruststoreAdminRole") !=NULL)
     {
         return TruststoreAdminRole;
     }
-    else if (strcmp("KeystoreAdminRole", buf) == 0)
+    else if (strstr(buf,"KeystoreAdminRole") != NULL)
     {
         return KeystoreAdminRole;
     }
-    else if (strcmp("UserMappingAdminRole", buf) == 0)
+    else if (strstr(buf,"UserMappingAdminRole") != NULL)
     {
         return UserMappingAdminRole;
     }
-    else if (strcmp("RecoverySessionRole", buf) == 0)
+    else if (strstr(buf,"RecoverySessionRole") != NULL)
     {
         return RecoverySessionRole;
     }

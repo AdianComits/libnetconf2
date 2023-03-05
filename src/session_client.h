@@ -470,7 +470,7 @@ void nc_client_tls_get_crl_paths(const char **crl_file, const char **crl_dir);
  * @return Created NETCONF session object or NULL on error.
  */
 struct nc_session *nc_connect_tls(const char *host, uint16_t port, struct ly_ctx *ctx);
-
+struct nc_session *nc_connect_tls_tofu(const char *host, uint16_t port, struct ly_ctx *ctx);
 /**
  * @brief Connect to the NETCONF server using the provided TLS (libssl) session.
  *
